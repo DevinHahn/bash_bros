@@ -1,84 +1,48 @@
 /**
- * This example is following frontend and backend separation.
- *
- * Before this .js is loaded, the html skeleton is created.
- *
- * This .js performs three steps:
- *      1. Get parameter from request URL so it know which id to look for
- *      2. Use jQuery to talk to backend API to get the json data.
- *      3. Populate the data to correct html elements.
- */
-
-
-/**
- * Retrieve parameter from request URL, matching by parameter name
- * @param target String
- * @returns {*}
- */
-function getParameterByName(target) {
-    // Get request URL
-    let url = window.location.href;
-    // Encode target parameter name to url encoding
-    target = target.replace(/[\[\]]/g, "\\$&");
-
-    // Ues regular expression to find matched parameter value
-    let regex = new RegExp("[?&]" + target + "(=([^&#]*)|&|#|$)"),
-        results = regex.exec(url);
-    if (!results) return null;
-    if (!results[2]) return '';
-
-    // Return the decoded parameter value
-    return decodeURIComponent(results[2].replace(/\+/g, " "));
-}
-
-/**
- * Handles the data returned by the API, read the jsonObject and populate data into html elements
+ * Handles the data returned by the API, reads the jsonObject and populates data into HTML elements
  * @param resultData jsonObject
  */
-
 function handleResult(resultData) {
-
     console.log("handleResult: populating star info from resultData");
 
-    // populate the star info h3
-    // find the empty h3 body by id "star_info"
-    let starInfoElement = jQuery("#star_info");
+    // Check if we have the star information
+    if (!resultData || !resultData["id"]) {
+        console.log("No star data found in the result.");
+        jQuery("#star_info").text("No star information available.");
+        return;
+    }
 
-    // append two html <p> created to the h3 body, which will refresh the page
-    starInfoElement.append("<p>Star Name: " + resultData[0]["star_name"] + "</p>" +
-        "<p>Date Of Birth: " + resultData[0]["star_dob"] + "</p>");
+    // Populate the star information
+    jQuery("#star_info").html(
+        "<p>Star Name: " + resultData["name"] + "</p>" +
+        "<p>Birth Year: " + (resultData["birthYear"] ? resultData["birthYear"] : "N/A") + "</p>"
+    );
 
-    console.log("handleResult: populating movie table from resultData");
+    // Populate the movie information
+    let movieListElement = jQuery("#movie_table_body");
+    movieListElement.empty(); // Clear previous entries
 
-    // Populate the star table
-    // Find the empty table body by id "movie_table_body"
-    let movieTableBodyElement = jQuery("#movie_table_body");
+    if (resultData["movies"] && resultData["movieIds"]) {
+        let movies = resultData["movies"].split(", "); // Split the concatenated movie titles
+        let movieIds = resultData["movieIds"].split(", "); // Split the concatenated movie IDs
 
-    // Concatenate the html tags with resultData jsonObject to create table rows
-    for (let i = 0; i < Math.min(10, resultData.length); i++) {
-        let rowHTML = "";
-        rowHTML += "<tr>";
-        rowHTML += "<th>" + resultData[i]["movie_title"] + "</th>";
-        rowHTML += "<th>" + resultData[i]["movie_year"] + "</th>";
-        rowHTML += "<th>" + resultData[i]["movie_director"] + "</th>";
-        rowHTML += "</tr>";
-
-        // Append the row created to the table body, which will refresh the page
-        movieTableBodyElement.append(rowHTML);
+        for (let i = 0; i < movies.length; i++) {
+            // Create a clickable link for each movie title
+            let rowHTML = "<tr><td><a href='single-movie.html?id=" + movieIds[i] + "'>" + movies[i] + "</a></td></tr>";
+            movieListElement.append(rowHTML);
+        }
+    } else {
+        movieListElement.append("<tr><td>No movie information available.</td></tr>");
     }
 }
 
-/**
- * Once this .js is loaded, following scripts will be executed by the browser\
- */
-
-// Get id from URL
-let starId = getParameterByName('id');
+// Extract star ID from the URL
+let starId = new URLSearchParams(window.location.search).get("id");
 
 // Makes the HTTP GET request and registers on success callback function handleResult
 jQuery.ajax({
-    dataType: "json",  // Setting return data type
-    method: "GET",// Setting request method
-    url: "api/single-star?id=" + starId, // Setting request url, which is mapped by StarsServlet in Stars.java
-    success: (resultData) => handleResult(resultData) // Setting callback function to handle data returned successfully by the SingleStarServlet
+    dataType: "json", // Setting return data type
+    method: "GET", // Setting request method
+    url: "api/single-star?id=" + starId, // Setting request URL with star ID
+    success: (resultData) => handleResult(resultData) // Setting callback function to handle data returned successfully
 });
